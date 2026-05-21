@@ -35,6 +35,18 @@ import { LucideAngularModule, Flame } from 'lucide-angular';
             <p class="mt-2 text-sm text-gray-500 font-medium">Tu nutrición inteligente</p>
           </div>
 
+          <!-- Pending Account Alert -->
+          @if (pendingAccount()) {
+            <div class="mb-6 animate-fade-in-up">
+              <div class="flex items-start gap-3 bg-yellow-50 border border-yellow-200 text-yellow-800 px-4 py-3 rounded-xl text-sm">
+                <svg class="w-5 h-5 mt-0.5 shrink-0 text-yellow-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z"/>
+                </svg>
+                <span>Tu cuenta está <strong>pendiente de activación</strong>. Consulta con tu nutricionista para verificar tu pago.</span>
+              </div>
+            </div>
+          }
+
           <!-- Error Alert -->
           @if (errorMessage()) {
             <div class="mb-6 animate-fade-in-up">
@@ -218,6 +230,7 @@ export class LoginComponent {
   showPassword = signal(false);
   errorMessage = signal<string | null>(null);
   successMessage = signal<string | null>(null);
+  pendingAccount = signal(false);
 
   currentYear = new Date().getFullYear();
 
@@ -245,6 +258,7 @@ export class LoginComponent {
     this.loading.set(true);
     this.errorMessage.set(null);
     this.successMessage.set(null);
+    this.pendingAccount.set(false);
 
     const { email, password, rememberMe } = this.loginForm.getRawValue();
 
@@ -255,11 +269,15 @@ export class LoginComponent {
       },
       error: (err) => {
         this.loading.set(false);
-        const message =
-          err.error?.detail ||
-          err.error?.message ||
-          'Credenciales incorrectas. Verifica tu correo y contraseña.';
-        this.errorMessage.set(message);
+        if (err.status === 403) {
+          this.pendingAccount.set(true);
+        } else {
+          const message =
+            err.error?.detail ||
+            err.error?.message ||
+            'Credenciales incorrectas. Verifica tu correo y contraseña.';
+          this.errorMessage.set(message);
+        }
       },
     });
   }

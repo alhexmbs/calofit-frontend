@@ -2,7 +2,7 @@ import { Component, signal, inject } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { RouterModule, RouterOutlet, RouterLink, RouterLinkActive } from '@angular/router';
 import { AuthService } from '../../../core/services/auth.service';
-import { LucideAngularModule, LayoutDashboard, User, Users, LogOut } from 'lucide-angular';
+import { LucideAngularModule, LayoutDashboard, User, Users, LogOut, CreditCard } from 'lucide-angular';
 
 @Component({
   selector: 'app-admin-layout',
@@ -125,5 +125,6 @@ export class AdminLayoutComponent {
     { icon: LayoutDashboard, label: 'Dashboard', route: '/admin/dashboard', exact: true },
     { icon: User, label: 'Usuarios', route: '/admin/usuarios', exact: false },
     { icon: Users, label: 'Clientes', route: '/admin/clientes', exact: false },
+    { icon: CreditCard, label: 'Pagos', route: '/admin/pagos', exact: false },
   ];
 }

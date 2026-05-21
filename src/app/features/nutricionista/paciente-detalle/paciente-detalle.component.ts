@@ -5,7 +5,7 @@ import { RouterModule, ActivatedRoute } from '@angular/router';
 import { HttpClient } from '@angular/common/http';
 import { ToastrService } from 'ngx-toastr';
 import { BaseChartDirective } from 'ng2-charts';
-import { LucideAngularModule, TrendingDown, Activity, CalendarDays, Target, Bot, BadgeCheck, Ban, Stethoscope } from 'lucide-angular';
+import { LucideAngularModule, TrendingDown, Activity, CalendarDays, Target, Bot, BadgeCheck, Ban, Stethoscope, CreditCard, Plus, Eye, RefreshCw, Smartphone, Banknote, CircleX } from 'lucide-angular';
 import {
   Chart,
   LineController,
@@ -66,6 +66,17 @@ interface DayPlan {
   proteinas: number;
   carbos: number;
   grasas: number;
+}
+
+interface Pago {
+  id: number;
+  metodo_pago: 'yape' | 'efectivo';
+  estado: 'pendiente' | 'aprobado' | 'rechazado';
+  monto: number | null;
+  concepto: string | null;
+  comprobante_url: string | null;
+  fecha_pago: string;
+  notas_admin: string | null;
 }
 
 @Component({
@@ -332,6 +343,57 @@ interface DayPlan {
         </button>
       </div>
 
+      <!-- ═══════════════ PAGOS ═══════════════ -->
+      <div class="bg-white rounded-xl shadow-sm border border-gray-100 p-6">
+        <div class="flex items-center justify-between mb-4">
+          <h2 class="text-base font-semibold text-gray-900 flex items-center gap-2">
+            <lucide-angular [img]="CreditCardIcon" [size]="16" class="text-[#146aff]" />
+            Pagos
+          </h2>
+          <button (click)="openPagoModal()"
+            class="inline-flex items-center gap-1.5 px-3 py-1.5 text-xs font-semibold text-white bg-[#146aff] rounded-xl hover:bg-blue-700 transition-colors cursor-pointer">
+            <lucide-angular [img]="PlusIcon" [size]="13" />
+            Registrar pago
+          </button>
+        </div>
+
+        @if (loadingPagos()) {
+          <div class="flex items-center justify-center py-8">
+            <div class="w-6 h-6 border-2 border-blue-200 border-t-[#146aff] rounded-full animate-spin"></div>
+          </div>
+        }
+
+        @if (!loadingPagos() && pagos().length === 0) {
+          <p class="text-center text-sm text-gray-400 py-6">Sin pagos registrados</p>
+        }
+
+        @if (!loadingPagos() && pagos().length > 0) {
+          <div class="space-y-2">
+            @for (pago of pagos(); track pago.id) {
+              <div class="flex items-center justify-between p-3 rounded-xl border border-gray-100 hover:border-gray-200 transition-colors">
+                <div class="flex items-center gap-3">
+                  <div class="w-8 h-8 rounded-lg flex items-center justify-center"
+                    [ngClass]="pago.metodo_pago === 'yape' ? 'bg-purple-50 text-purple-600' : 'bg-green-50 text-green-600'">
+                    <lucide-angular [img]="pago.metodo_pago === 'yape' ? SmartphoneIcon : BanknoteIcon" [size]="15" />
+                  </div>
+                  <div>
+                    <p class="text-sm font-medium text-gray-800">
+                      {{ pago.concepto || 'Sin concepto' }}
+                      @if (pago.monto != null) { <span class="text-gray-500">— S/ {{ pago.monto | number:'1.2-2' }}</span> }
+                    </p>
+                    <p class="text-xs text-gray-400">{{ pago.fecha_pago | date:'dd/MM/yyyy HH:mm' }}</p>
+                  </div>
+                </div>
+                <span class="inline-flex items-center px-2.5 py-1 rounded-full text-xs font-semibold"
+                  [ngClass]="getEstadoPagoBadge(pago.estado)">
+                  {{ pago.estado }}
+                </span>
+              </div>
+            }
+          </div>
+        }
+      </div>
+
       <!-- ═══════════════ HEALTH ALERTS ═══════════════ -->
       <div class="bg-white rounded-xl shadow-sm border border-gray-100 p-6">
         <h2 class="text-base font-semibold text-gray-900 mb-4">🚨 Alertas de Salud</h2>
@@ -367,6 +429,88 @@ interface DayPlan {
       </div>
     </div>
 
+    <!-- Registrar Pago Modal -->
+    @if (showPagoModal()) {
+      <div class="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/40 backdrop-blur-sm" (click)="closePagoModal()">
+        <div class="relative bg-white rounded-2xl shadow-2xl w-full max-w-md p-6" (click)="$event.stopPropagation()">
+          <div class="flex items-center justify-between mb-5">
+            <h3 class="text-lg font-bold text-gray-900">Registrar pago</h3>
+            <button (click)="closePagoModal()" class="text-gray-400 hover:text-gray-600 transition-colors cursor-pointer">
+              <lucide-angular [img]="CircleXIcon" [size]="20" />
+            </button>
+          </div>
+
+          @if (pagoStep() === 1) {
+            <p class="text-sm text-gray-500 mb-4">Selecciona el método de pago</p>
+            <div class="grid grid-cols-2 gap-3">
+              <button (click)="pagoMetodo.set('yape'); pagoStep.set(2)"
+                class="flex flex-col items-center gap-3 p-5 rounded-2xl border-2 border-gray-200 hover:border-purple-400 hover:bg-purple-50 transition-all cursor-pointer">
+                <div class="w-12 h-12 bg-purple-100 rounded-full flex items-center justify-center text-purple-600">
+                  <lucide-angular [img]="SmartphoneIcon" [size]="24" />
+                </div>
+                <span class="text-sm font-semibold text-gray-700">Yape</span>
+              </button>
+              <button (click)="pagoMetodo.set('efectivo'); pagoStep.set(2)"
+                class="flex flex-col items-center gap-3 p-5 rounded-2xl border-2 border-gray-200 hover:border-green-400 hover:bg-green-50 transition-all cursor-pointer">
+                <div class="w-12 h-12 bg-green-100 rounded-full flex items-center justify-center text-green-600">
+                  <lucide-angular [img]="BanknoteIcon" [size]="24" />
+                </div>
+                <span class="text-sm font-semibold text-gray-700">Efectivo</span>
+              </button>
+            </div>
+          }
+
+          @if (pagoStep() === 2) {
+            <div class="space-y-4">
+              <div class="flex items-center gap-2">
+                <span class="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-semibold"
+                  [ngClass]="pagoMetodo() === 'yape' ? 'bg-purple-50 text-purple-700' : 'bg-green-50 text-green-700'">
+                  <lucide-angular [img]="pagoMetodo() === 'yape' ? SmartphoneIcon : BanknoteIcon" [size]="12" />
+                  {{ pagoMetodo() === 'yape' ? 'Yape' : 'Efectivo' }}
+                </span>
+                <button (click)="pagoStep.set(1)" class="text-xs text-gray-400 hover:text-gray-600 transition-colors cursor-pointer">Cambiar</button>
+              </div>
+
+              <div>
+                <label class="block text-sm font-medium text-gray-700 mb-1.5">Monto (S/)</label>
+                <input type="number" [(ngModel)]="pagoMonto" placeholder="0.00" min="0" step="0.01"
+                  class="w-full px-4 py-2.5 text-sm rounded-xl border border-gray-200 focus:outline-none focus:ring-2 focus:ring-[#146aff]/20 focus:border-[#146aff] transition-all" />
+              </div>
+
+              <div>
+                <label class="block text-sm font-medium text-gray-700 mb-1.5">Concepto</label>
+                <input type="text" [(ngModel)]="pagoConcepto" placeholder="Membresía"
+                  class="w-full px-4 py-2.5 text-sm rounded-xl border border-gray-200 focus:outline-none focus:ring-2 focus:ring-[#146aff]/20 focus:border-[#146aff] transition-all" />
+              </div>
+
+              @if (pagoMetodo() === 'yape') {
+                <div>
+                  <label class="block text-sm font-medium text-gray-700 mb-1.5">Comprobante (imagen)</label>
+                  <input type="file" accept="image/*" (change)="onFileChange($event)"
+                    class="w-full text-sm text-gray-600 file:mr-3 file:py-2 file:px-4 file:rounded-lg file:border-0 file:text-xs file:font-semibold file:bg-purple-50 file:text-purple-700 hover:file:bg-purple-100 transition-all cursor-pointer" />
+                </div>
+                <div class="flex items-start gap-2 p-3 rounded-xl bg-blue-50 border border-blue-100 text-xs text-blue-700">
+                  <lucide-angular [img]="SmartphoneIcon" [size]="14" class="shrink-0 mt-0.5" />
+                  <span>El paciente debe enviar foto del comprobante por WhatsApp. El admin validará el pago manualmente.</span>
+                </div>
+              }
+
+              <div class="flex gap-3 pt-1">
+                <button (click)="closePagoModal()"
+                  class="flex-1 py-2.5 text-sm font-semibold text-gray-600 bg-gray-100 rounded-xl hover:bg-gray-200 transition-colors cursor-pointer">
+                  Cancelar
+                </button>
+                <button (click)="registerPago()" [disabled]="registrando()"
+                  class="flex-1 py-2.5 text-sm font-semibold text-white bg-[#146aff] rounded-xl hover:bg-blue-700 transition-colors disabled:opacity-50 cursor-pointer">
+                  {{ registrando() ? 'Registrando...' : 'Registrar pago' }}
+                </button>
+              </div>
+            </div>
+          }
+        </div>
+      </div>
+    }
+
     <!-- Error State -->
     <div *ngIf="!loading() && error()" class="flex flex-col items-center justify-center py-20 text-center">
       <span class="text-5xl mb-4">😕</span>
@@ -391,6 +535,12 @@ export class PacienteDetalleComponent implements OnInit {
   readonly BadgeCheckIcon = BadgeCheck;
   readonly BanIcon = Ban;
   readonly StethoscopeIcon = Stethoscope;
+  readonly CreditCardIcon = CreditCard;
+  readonly PlusIcon = Plus;
+  readonly EyeIcon = Eye;
+  readonly SmartphoneIcon = Smartphone;
+  readonly BanknoteIcon = Banknote;
+  readonly CircleXIcon = CircleX;
   private toastr = inject(ToastrService);
 
   private pacienteId: number = 0;
@@ -420,6 +570,17 @@ export class PacienteDetalleComponent implements OnInit {
 
   // Validate
   validating = signal(false);
+
+  // Pagos
+  pagos = signal<Pago[]>([]);
+  loadingPagos = signal(false);
+  showPagoModal = signal(false);
+  pagoStep = signal<1 | 2>(1);
+  pagoMetodo = signal<'yape' | 'efectivo' | null>(null);
+  pagoMonto = '';
+  pagoConcepto = 'Membresía';
+  pagoFile: File | null = null;
+  registrando = signal(false);
 
   // Chart data
   weightChartData = signal<any>(null);
@@ -459,6 +620,7 @@ export class PacienteDetalleComponent implements OnInit {
     if (this.pacienteId) {
       this.loadProgreso();
       this.loadPlan();
+      this.loadPagos();
     }
   }
 
@@ -634,6 +796,80 @@ export class PacienteDetalleComponent implements OnInit {
           this.savingCoachNote.set(false);
         },
       });
+  }
+
+  // ─── Pagos ───
+
+  loadPagos() {
+    this.loadingPagos.set(true);
+    this.http.get<Pago[]>(`http://localhost:8000/pagos/cliente/${this.pacienteId}`).subscribe({
+      next: (res) => {
+        this.pagos.set(res);
+        this.loadingPagos.set(false);
+      },
+      error: () => this.loadingPagos.set(false),
+    });
+  }
+
+  openPagoModal() {
+    this.pagoStep.set(1);
+    this.pagoMetodo.set(null);
+    this.pagoMonto = '';
+    this.pagoConcepto = 'Membresía';
+    this.pagoFile = null;
+    this.showPagoModal.set(true);
+  }
+
+  closePagoModal() {
+    this.showPagoModal.set(false);
+  }
+
+  onFileChange(event: Event) {
+    const input = event.target as HTMLInputElement;
+    this.pagoFile = input.files?.[0] ?? null;
+  }
+
+  registerPago() {
+    const metodo = this.pagoMetodo();
+    if (!metodo) return;
+    this.registrando.set(true);
+    const body = {
+      client_id: this.pacienteId,
+      metodo_pago: metodo,
+      monto: this.pagoMonto ? Number(this.pagoMonto) : null,
+      concepto: this.pagoConcepto || 'Membresía',
+    };
+    this.http.post<{ id: number }>('http://localhost:8000/pagos/registrar', body).subscribe({
+      next: (pago) => {
+        if (metodo === 'yape' && this.pagoFile) {
+          const fd = new FormData();
+          fd.append('file', this.pagoFile);
+          this.http.post(`http://localhost:8000/pagos/${pago.id}/comprobante`, fd).subscribe({
+            next: () => this.finishPago(),
+            error: () => this.finishPago(),
+          });
+        } else {
+          this.finishPago();
+        }
+      },
+      error: (err) => {
+        this.toastr.error(err?.error?.detail ?? 'Error al registrar pago', 'Error');
+        this.registrando.set(false);
+      },
+    });
+  }
+
+  private finishPago() {
+    this.toastr.success('Pago registrado. Pendiente de validación admin', 'Registrado');
+    this.registrando.set(false);
+    this.closePagoModal();
+    this.loadPagos();
+  }
+
+  getEstadoPagoBadge(estado: string): string {
+    if (estado === 'aprobado') return 'bg-emerald-50 text-emerald-700';
+    if (estado === 'rechazado') return 'bg-red-50 text-red-600';
+    return 'bg-yellow-50 text-yellow-700';
   }
 
   // ─── Chip Helpers ───

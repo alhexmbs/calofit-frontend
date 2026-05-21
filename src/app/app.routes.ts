@@ -128,6 +128,13 @@ export const routes: Routes = [
             (m) => m.AdminClientesComponent
           ),
       },
+      {
+        path: 'pagos',
+        loadComponent: () =>
+          import('./features/admin/pagos/pagos-pendientes.component').then(
+            (m) => m.PagosPendientesComponent
+          ),
+      },
     ],
   },
   {

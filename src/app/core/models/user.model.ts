@@ -10,6 +10,7 @@ export interface UserInfo {
   role: StaffRole | null;
   profile_picture_url: string | null;
   is_profile_complete: boolean;
+  is_active: boolean;
 }
 
 export interface LoginRequest {
