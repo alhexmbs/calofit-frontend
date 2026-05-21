@@ -242,7 +242,10 @@ interface Paciente {
           <div>
             <label class="block text-sm font-medium text-gray-700 mb-1.5">DNI</label>
             <input type="text" [(ngModel)]="newDni" name="dni"
-              placeholder="12345678A"
+              inputmode="numeric"
+              maxlength="8"
+              placeholder="12345678"
+              (input)="onDniInput($event)"
               class="w-full px-4 py-2.5 rounded-xl border border-gray-200 text-sm text-gray-700 placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-[#146aff]/20 focus:border-[#146aff] transition-all" />
           </div>
           <div class="flex gap-3 pt-1">
@@ -377,6 +380,13 @@ export class PacientesListComponent implements OnInit {
     this.compFirstName = '';
     this.compLastNamePaternal = '';
     this.compLastNameMaternal = '';
+  }
+
+  onDniInput(event: Event): void {
+    const input = event.target as HTMLInputElement;
+    const soloNumeros = input.value.replace(/\D/g, '').slice(0, 8);
+    input.value = soloNumeros;
+    this.newDni = soloNumeros;
   }
 
   createExpressPaciente(): void {
