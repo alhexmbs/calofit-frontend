@@ -1,10 +1,10 @@
-import { Component, signal, inject, ElementRef, viewChild, OnInit } from '@angular/core';
+import { Component, signal, inject, ElementRef, viewChild, OnInit, OnDestroy } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
 import { HttpClient } from '@angular/common/http';
 import { AuthService } from '../../../core/services/auth.service';
 import { DashboardRefreshService } from '../../../core/services/dashboard-refresh.service';
-import { LucideAngularModule, Bot, User } from 'lucide-angular';
+import { LucideAngularModule, Bot, User, Mic, MicOff } from 'lucide-angular';
 
 interface CaloFitCard {
   titulo: string;
@@ -132,11 +132,28 @@ const NUTRITION_LOG_REGEX = /^(?:me\s+)?(?:com[ií]|tom[eé]|almorc[eé]|cen[eé
             [(ngModel)]="userInput"
             name="message"
             type="text"
-            placeholder="Escribe tu pregunta..."
+            [placeholder]="listening() ? 'Escuchando...' : 'Escribe o pregunta con voz...'"
             class="flex-1 px-5 py-3 rounded-full border border-gray-200 bg-gray-50 text-sm text-gray-800 placeholder-gray-400 outline-none focus:border-primary-400 focus:ring-2 focus:ring-primary-100 transition-all"
+            [class.border-red-400]="listening()"
+            [class.ring-2]="listening()"
+            [class.ring-red-100]="listening()"
             [disabled]="loading()"
             autocomplete="off"
           />
+          <!-- Mic Button -->
+          @if (speechSupported) {
+            <button
+              type="button"
+              (click)="toggleListening()"
+              [disabled]="loading()"
+              [class]="listening()
+                ? 'w-11 h-11 rounded-full bg-red-500 text-white flex items-center justify-center hover:bg-red-600 disabled:opacity-40 disabled:cursor-not-allowed transition-all duration-200 flex-shrink-0 cursor-pointer animate-pulse'
+                : 'w-11 h-11 rounded-full bg-gray-100 text-gray-500 flex items-center justify-center hover:bg-gray-200 disabled:opacity-40 disabled:cursor-not-allowed transition-all duration-200 flex-shrink-0 cursor-pointer'"
+              [title]="listening() ? 'Detener grabación' : 'Hablar'"
+            >
+              <lucide-angular [img]="listening() ? MicOffIcon : MicIcon" [size]="18" />
+            </button>
+          }
           <button
             type="submit"
             [disabled]="loading() || !userInput.trim()"
@@ -169,18 +186,84 @@ const NUTRITION_LOG_REGEX = /^(?:me\s+)?(?:com[ií]|tom[eé]|almorc[eé]|cen[eé
     }
   `]
 })
-export class NutricionChatComponent implements OnInit {
+export class NutricionChatComponent implements OnInit, OnDestroy {
   private readonly http = inject(HttpClient);
   private readonly auth = inject(AuthService);
 
   readonly BotIcon = Bot;
   readonly UserIcon = User;
+  readonly MicIcon = Mic;
+  readonly MicOffIcon = MicOff;
   private readonly dashboardRefresh = inject(DashboardRefreshService);
   private readonly chatContainer = viewChild<ElementRef>('chatContainer');
 
   readonly messages = signal<ChatMessage[]>([]);
   readonly loading = signal(false);
+  readonly listening = signal(false);
   userInput = '';
+
+  readonly speechSupported = 'webkitSpeechRecognition' in window || 'SpeechRecognition' in window;
+  private recognition: any = null;
+
+  ngOnDestroy(): void {
+    this.stopListening();
+  }
+
+  toggleListening(): void {
+    if (this.listening()) {
+      this.stopListening();
+    } else {
+      this.startListening();
+    }
+  }
+
+  private startListening(): void {
+    const SpeechRecognition = (window as any).SpeechRecognition || (window as any).webkitSpeechRecognition;
+    this.recognition = new SpeechRecognition();
+    this.recognition.lang = 'es-PE';
+    this.recognition.interimResults = true;
+    this.recognition.continuous = true;
+    this.recognition.maxAlternatives = 1;
+
+    let finalTranscript = '';
+
+    this.recognition.onstart = () => this.listening.set(true);
+
+    this.recognition.onresult = (event: any) => {
+      let interim = '';
+      for (let i = event.resultIndex; i < event.results.length; i++) {
+        const transcript = event.results[i][0].transcript;
+        if (event.results[i].isFinal) {
+          finalTranscript += transcript + ' ';
+        } else {
+          interim = transcript;
+        }
+      }
+      this.userInput = (finalTranscript + interim).trim();
+    };
+
+    this.recognition.onend = () => {
+      if (this.listening()) {
+        try { this.recognition?.start(); } catch { /* ya reiniciando */ }
+      }
+    };
+
+    this.recognition.onerror = (event: any) => {
+      if (event.error === 'no-speech') return;
+      this.listening.set(false);
+      this.recognition = null;
+    };
+
+    this.recognition.start();
+  }
+
+  private stopListening(): void {
+    if (this.recognition) {
+      this.recognition.stop();
+      this.recognition = null;
+    }
+    this.listening.set(false);
+  }
 
   ngOnInit(): void {
     const clientId = this.auth.userId();
