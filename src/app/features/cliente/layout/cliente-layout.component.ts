@@ -115,11 +115,9 @@ export class ClienteLayoutComponent {
   readonly UtensilsCrossedIcon = UtensilsCrossed;
 
   readonly navLinks = [
-    { path: '/cliente/dashboard', icon: LayoutDashboard, label: 'Dashboard', exact: true },
+    { path: '/cliente/dashboard', icon: LayoutDashboard, label: 'Inicio', exact: true },
     { path: '/cliente/chat', icon: MessageSquare, label: 'Coach IA', exact: false },
-    { path: '/cliente/nutricion', icon: Bot, label: 'Nutrición IA', exact: false },
     { path: '/cliente/balance', icon: Activity, label: 'Balance', exact: false },
-    { path: '/cliente/templates', icon: UtensilsCrossed, label: 'Recetas', exact: false },
   ];
 
   readonly initials = () => {

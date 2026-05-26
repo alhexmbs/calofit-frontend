@@ -1,5 +1,6 @@
 import { Component, signal, computed, inject } from '@angular/core';
 import { CommonModule } from '@angular/common';
+import { RouterModule } from '@angular/router';
 import { HttpClient } from '@angular/common/http';
 import { LucideAngularModule, Sparkles, RefreshCcw, Calendar, Bot, ClipboardList } from 'lucide-angular';
 import { takeUntilDestroyed } from '@angular/core/rxjs-interop';
@@ -18,12 +19,12 @@ interface DiaPlan {
 
 @Component({
   selector: 'app-cliente-dashboard',
-  imports: [CommonModule, LucideAngularModule],
+  imports: [CommonModule, LucideAngularModule, RouterModule],
   template: `
     <div class="p-4 md:p-6 lg:p-8 max-w-6xl mx-auto space-y-6">
       <!-- Page Title -->
       <div class="animate-fade-in-up">
-        <h1 class="text-2xl font-bold text-gray-800">Mi Menú Semanal</h1>
+        <h1 class="text-2xl font-bold text-gray-800">Mi menú semanal</h1>
         <p class="text-sm text-gray-400 mt-1">Plan de alimentación inteligente y flexible</p>
       </div>
 
@@ -98,6 +99,23 @@ interface DiaPlan {
             <p class="text-gray-500 mt-2 text-sm max-w-sm mx-auto">
               Dirígete a la sección de Onboarding para que la inteligencia artificial te genere un plan semanal personalizado.
             </p>
+            <div class="mt-6">
+              @if (isProfileComplete()) {
+                <button (click)="generarPlan()" [disabled]="generatingPlan()"
+                  class="px-6 py-2.5 bg-primary-600 text-white font-semibold rounded-xl hover:bg-primary-700 transition-colors inline-block cursor-pointer flex items-center justify-center gap-2 mx-auto">
+                  @if (generatingPlan()) {
+                    <lucide-angular [img]="RefreshIcon" [size]="18" class="animate-spin" />
+                    Generando...
+                  } @else {
+                    Generar Plan Semanal
+                  }
+                </button>
+              } @else {
+                <a routerLink="/cliente/onboarding" class="px-6 py-2.5 bg-primary-600 text-white font-semibold rounded-xl hover:bg-primary-700 transition-colors inline-block cursor-pointer">
+                  Comenzar Onboarding
+                </a>
+              }
+            </div>
           </div>
         }
       }
@@ -125,6 +143,11 @@ export class ClienteDashboardComponent {
   readonly error = signal<string | null>(null);
   readonly diaSeleccionado = signal<number>(1);
   readonly swapping = signal<string | null>(null);
+  readonly generatingPlan = signal(false);
+
+  readonly isProfileComplete = computed(() => {
+    return this.auth.currentUser()?.is_profile_complete ?? false;
+  });
 
   readonly diaActual = computed(() => {
     const plan = this.data();
@@ -170,13 +193,14 @@ export class ClienteDashboardComponent {
       comida_actual: comidaActual
     }).subscribe({
       next: (res) => {
-        // Actualizar localmente el JSON de comidas
-        const plan = this.data();
-        if (plan) {
-          const diaIndex = plan.dias.findIndex(d => d.dia_numero === diaNumero);
-          if (diaIndex !== -1) {
-            plan.dias[diaIndex].comidas = res.dia_comidas;
-            this.data.set({ ...plan });
+        if (res.success) {
+          const actualData = this.data();
+          if (actualData) {
+            const diaIndex = actualData.dias.findIndex(d => d.dia_numero === diaNumero);
+            if (diaIndex !== -1) {
+              actualData.dias[diaIndex].comidas = res.dia_comidas;
+              this.data.set({ ...actualData });
+            }
           }
         }
         this.swapping.set(null);
@@ -184,6 +208,23 @@ export class ClienteDashboardComponent {
       error: () => {
         alert('Hubo un error al intentar cambiar la comida.');
         this.swapping.set(null);
+      }
+    });
+  }
+
+  generarPlan() {
+    if (this.generatingPlan()) return;
+    this.generatingPlan.set(true);
+    
+    this.http.post<any>('http://localhost:8000/nutricion/generar-plan-automatico', {}).subscribe({
+      next: () => {
+        this.generatingPlan.set(false);
+        this.loadPlan();
+      },
+      error: (err) => {
+        console.error(err);
+        alert('Hubo un error al generar tu plan. Por favor intenta de nuevo.');
+        this.generatingPlan.set(false);
       }
     });
   }

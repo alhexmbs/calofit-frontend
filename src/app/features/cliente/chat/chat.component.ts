@@ -1,4 +1,4 @@
-import { Component, signal, inject, ElementRef, ViewChild, AfterViewChecked } from '@angular/core';
+import { Component, signal, inject, ElementRef, ViewChild, AfterViewChecked, OnInit, effect } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
 import { HttpClient } from '@angular/common/http';
@@ -137,6 +137,30 @@ export class ChatComponent implements AfterViewChecked {
 
   constructor() {
     this.initSpeechRecognition();
+    
+    // Save to localStorage whenever messages change
+    effect(() => {
+      const msgs = this.messages();
+      if (msgs.length > 0) {
+        localStorage.setItem('calofit_coach_chat', JSON.stringify(msgs));
+      }
+    });
+  }
+
+  ngOnInit() {
+    // Load from localStorage
+    const saved = localStorage.getItem('calofit_coach_chat');
+    if (saved) {
+      try {
+        const parsed = JSON.parse(saved);
+        this.messages.set(parsed.map((m: any) => ({
+          ...m,
+          time: new Date(m.time)
+        })));
+      } catch (e) {
+        console.error('Error parsing chat history', e);
+      }
+    }
   }
 
   ngAfterViewChecked() {
